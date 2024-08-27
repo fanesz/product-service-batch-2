@@ -36,9 +36,12 @@ func (s *Seed) run(table string, total int) {
 		s.rolesSeed()
 	case "users":
 		s.usersSeed(total)
+	case "categories":
+		s.categoriesSeed()
 	case "all":
 		s.rolesSeed()
 		s.usersSeed(total)
+		s.categoriesSeed()
 	case "delete-all":
 		s.deleteAll()
 	default:
@@ -87,6 +90,13 @@ func (s *Seed) deleteAll() {
 		return
 	}
 	log.Info().Msg("roles table deleted successfully")
+
+	_, err = tx.Exec(`DELETE FROM categories`)
+	if err != nil {
+		log.Error().Err(err).Msg("Error deleting categories")
+		return
+	}
+	log.Info().Msg("categories table deleted successfully")
 
 	log.Info().Msg("=== All tables deleted successfully ===")
 }
@@ -225,4 +235,46 @@ func (s *Seed) usersSeed(total int) {
 	}
 
 	log.Info().Msg("users table seeded successfully")
+}
+
+// categoriesSeed seeds the categories table.
+func (s *Seed) categoriesSeed() {
+	categoryMaps := []map[string]any{
+		{"name": "Electronics", "desc": "Electronic devices and accessories"},
+		{"name": "Fashion", "desc": "Clothing, shoes, and accessories"},
+		{"name": "Home & Living", "desc": "Furniture, home decor, and kitchenware"},
+		{"name": "Health & Beauty", "desc": "Health, beauty, and personal care products"},
+		{"name": "Toys & Games", "desc": "Toys, games, and collectibles"},
+		{"name": "Sports & Outdoor", "desc": "Sports equipment and outdoor gear"},
+		{"name": "Automotive", "desc": "Automotive parts and accessories"},
+		{"name": "Books & Stationery", "desc": "Books, stationery, and office supplies"},
+	}
+
+	tx, err := s.db.BeginTxx(context.Background(), nil)
+	if err != nil {
+		log.Error().Err(err).Msg("Error starting transaction")
+		return
+	}
+	defer func() {
+		if err != nil {
+			err = tx.Rollback()
+			log.Error().Err(err).Msg("Error rolling back transaction")
+			return
+		}
+		err = tx.Commit()
+		if err != nil {
+			log.Error().Err(err).Msg("Error committing transaction")
+		}
+	}()
+
+	_, err = tx.NamedExec(`
+		INSERT INTO categories (name, description)
+		VALUES (:name, :desc)
+	`, categoryMaps)
+	if err != nil {
+		log.Error().Err(err).Msg("Error creating categories")
+		return
+	}
+
+	log.Info().Msg("categories table seeded successfully")
 }
