@@ -66,41 +66,32 @@ func (r *productRepository) GetProducts(ctx context.Context, req *entity.Product
 
 func (r *productRepository) GetProduct(ctx context.Context, req *entity.GetProductRequest) (*entity.GetProductResponse, error) {
 	var (
-		resp         = new(entity.GetProductResponse)
-		categoryResp = new(entity.GetCategoryResponse)
+		resp = new(entity.GetProductResponse)
 	)
 	query := `
 		SELECT
-			name, description, price, stock, category_id
-		FROM products
+			p.name,
+			p.description,
+			p.price,
+			p.stock,
+			c.name AS "category.name",
+			c.description AS "category.description"
+		FROM 
+			products p
+		JOIN 
+			categories c ON p.category_id = c.id
 		WHERE
-			deleted_at IS NULL
-			AND id = ?
+			p.deleted_at IS NULL
+			AND c.deleted_at IS NULL
+			AND p.id = ?
 	`
 	err := r.db.GetContext(ctx, resp, r.db.Rebind(query), req.Id)
 	if err != nil {
-		log.Error().Err(err).Any("payload", req).Msg("repository::GetProduct - Failed to get product")
+		log.Error().Err(err).Any("payload", req).Msg("repository::GetProduct - Failed to get product and category")
 		return nil, err
 	}
 
-	query = `
-		SELECT
-			name, description
-		FROM categories
-		WHERE
-			deleted_at IS NULL
-			AND id = ?
-	`
-
-	err = r.db.GetContext(ctx, categoryResp, r.db.Rebind(query), resp.CategoryId)
-	if err != nil {
-		log.Error().Err(err).Any("payload", req).Msg("repository::GetProduct - Failed to get category")
-		return nil, err
-	}
-
-	resp.Category = *categoryResp
 	resp.CategoryId = nil
-
 	return resp, nil
 }
 
