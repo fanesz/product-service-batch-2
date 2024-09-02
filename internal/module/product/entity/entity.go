@@ -1,6 +1,9 @@
 package entity
 
-import "codebase-app/pkg/types"
+import (
+	"codebase-app/internal/common/consts"
+	"codebase-app/pkg/types"
+)
 
 type ProductsResponse struct {
 	Items []ProductItem `json:"items"`
@@ -66,8 +69,17 @@ type GetProductRequest struct {
 }
 
 type ProductsRequest struct {
-	Page     int `query:"page" validate:"required"`
-	Paginate int `query:"paginate" validate:"required"`
+	Page        int     `query:"page" validate:"required"`
+	Paginate    int     `query:"paginate" validate:"required"`
+	ShopId      string  `query:"shop_id"`
+	Name        string  `query:"name"`
+	MinPrice    float64 `query:"min_price"`
+	MaxPrice    float64 `query:"max_price"`
+	IsAvailable *bool   `query:"is_available"`
+	CategoryId  string  `query:"category_id"`
+
+	OrderBy consts.OrderBy `query:"order_by"` // asc | desc
+	Sort    string         `query:"sort"`     // created_at | name | price | stock
 }
 
 func (r *ProductsRequest) SetDefault() {

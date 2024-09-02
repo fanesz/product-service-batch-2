@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"codebase-app/internal/common/utils"
 	"codebase-app/internal/module/product/entity"
 	"codebase-app/internal/module/product/ports"
 	"context"
@@ -28,8 +29,9 @@ func (r *productRepository) GetProducts(ctx context.Context, req *entity.Product
 	}
 
 	var (
-		resp = new(entity.ProductsResponse)
-		data = make([]dao, 0, req.Paginate)
+		resp   = new(entity.ProductsResponse)
+		data   = make([]dao, 0, req.Paginate)
+		params = []interface{}{}
 	)
 	resp.Items = make([]entity.ProductItem, 0, req.Paginate)
 
@@ -40,12 +42,13 @@ func (r *productRepository) GetProducts(ctx context.Context, req *entity.Product
 		FROM products
 		WHERE
 			deleted_at IS NULL
-		LIMIT ? OFFSET ?
 	`
-	err := r.db.SelectContext(ctx, &data, r.db.Rebind(query),
-		req.Paginate,
-		req.Paginate*(req.Page-1),
-	)
+	productsFilters(&query, &params, req)
+	utils.FieldOrderBy(&query, req.OrderBy, req.Sort, "name", "price", "stock", "created_at")
+	query += " LIMIT ? OFFSET ?"
+	params = append(params, req.Paginate, req.Paginate*(req.Page-1))
+
+	err := r.db.SelectContext(ctx, &data, r.db.Rebind(query), params...)
 	if err != nil {
 		log.Error().Err(err).Any("payload", req).Msg("repository::GetProducts - Failed to get products")
 		return nil, err
@@ -62,6 +65,41 @@ func (r *productRepository) GetProducts(ctx context.Context, req *entity.Product
 	resp.Meta.CountTotalPage(req.Page, req.Paginate, resp.Meta.TotalData)
 
 	return resp, nil
+}
+
+func productsFilters(query *string, params *[]interface{}, req *entity.ProductsRequest) {
+	if req.ShopId != "" {
+		*query += " AND shop_id = ?"
+		*params = append(*params, req.ShopId)
+	}
+
+	if req.Name != "" {
+		*query += " AND name ILIKE ?"
+		*params = append(*params, "%"+req.Name+"%")
+	}
+
+	if req.MinPrice > 0 {
+		*query += " AND price >= ?"
+		*params = append(*params, req.MinPrice)
+	}
+
+	if req.MaxPrice > 0 {
+		*query += " AND price <= ?"
+		*params = append(*params, req.MaxPrice)
+	}
+
+	if req.IsAvailable != nil {
+		if *req.IsAvailable {
+			*query += " AND stock > 0"
+		} else if !*req.IsAvailable {
+			*query += " AND stock = 0"
+		}
+	}
+
+	if req.CategoryId != "" {
+		*query += " AND category_id = ?"
+		*params = append(*params, req.CategoryId)
+	}
 }
 
 func (r *productRepository) GetProduct(ctx context.Context, req *entity.GetProductRequest) (*entity.GetProductResponse, error) {

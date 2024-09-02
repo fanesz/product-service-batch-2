@@ -31,7 +31,7 @@ func NewProductHandler() *productHandler {
 
 func (h *productHandler) Register(router fiber.Router) {
 	router.Get("/products", middleware.UserIdHeader, h.GetProducts)
-	router.Get("/products/:id", h.GetProduct)
+	router.Get("/products/:id", middleware.UserIdHeader, h.GetProduct)
 	router.Post("/products", middleware.UserIdHeader, h.CreateProduct)
 	router.Put("/products/:id", middleware.UserIdHeader, h.UpdateProduct)
 	router.Delete("/products/:id", middleware.UserIdHeader, h.DeleteProduct)
